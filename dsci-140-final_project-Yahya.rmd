@@ -1,0 +1,344 @@
+---
+title: "DSCI 140 Final Project - Yahya"
+
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r cars, include=FALSE}
+# installing necessary packages
+install.packages("ggrepel")
+# loading necessary packages 
+library(rvest)
+library(gt)
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+library(readxl)
+library(readr)
+library(ggplot2)
+library(hrbrthemes)
+library(viridis)
+library(ggrepel)
+
+# SPI GLOBAL RANKINGS STATS
+spi_global_rankings <- read_csv("../Misc Data/spi_global_rankings.csv")
+
+# tidying the global rankings of men's teams 
+
+# grouping by league
+spi_global_rankings <- spi_global_rankings %>% 
+  arrange(league) 
+
+# selecting the leagues I want to focus on (10 leagues, 5 European vs. 5 Global)
+
+spi_global_rankings <- spi_global_rankings %>% 
+  filter (league == "Argentina Primera Division" | league == "Australian A-League"
+          | league == "Barclays Premier League" | league == "Brasileiro Série A"
+          | league == "Chinese Super League" | league == "French Ligue 1" 
+          | league == "German Bundesliga" | league == "Italy Serie A" 
+          | league == "Major League Soccer" | league == "Spanish Primera Division") 
+
+# changing the names of the leagues to their more commonly known forms 
+
+spi_global_rankings[spi_global_rankings == "Barclays Premier League"] <- "Premier League" 
+spi_global_rankings[spi_global_rankings == "Brasileiro Série A"] <- "Brazil Serie A"
+spi_global_rankings[spi_global_rankings == "French Ligue 1"] <- "French Ligue"
+spi_global_rankings[spi_global_rankings == "Spanish Primera Division"] <- "La Liga"
+
+
+
+# BEST TEAM FROM EACH LEAGUE STATS
+
+
+  # read in the data including stats
+  best10_teams <- read_excel("../Misc Data/DSCI 140 Soccer Stats.xlsx")
+  
+  # add a location column to denote whether a team is European or not 
+  best10_teams <- best10_teams %>% 
+    mutate(Location = case_when(League == "Argentina Primera Division" ~ "Global", 
+                                League == "Australian A-League" ~ "Global", 
+                                League == "Brazil Serie A" ~ "Global", 
+                                League == "Chinese Super League" ~ "Global", 
+                                League == "French Ligue" ~ "Europe", 
+                                League == "German Bundesliga" ~ "Europe", 
+                                League == "Italy Serie A" ~ "Europe", 
+                                League == "La Liga" ~ "Europe", 
+                                League == "Major League Soccer" ~ "Global", 
+                                League == "Premier League" ~ "Europe")) %>% 
+    arrange(desc(`Win %`)) 
+  
+```
+
+# **Comparison of Soccer Leagues Across the World: Is Europe Really the Best?** 
+#### Ebtehal Yahya
+#### May 05, 2022
+
+## **Introduction**
+
+Any soccer fan, avid or casual, has likely heard of the notion that soccer is at its best in Europe. Take an average person’s knowledge of the sport, and you are sure to hear about Messi and Ronaldo before Christian Pulisic or Landon Donovan. It is a common preconception that to be considered among the best of the best, a player had to have competed in an elite European league at one point in their career. My interest, however, lies in whether that thought process is backed up by statistical evidence.  
+
+<br>
+
+There are numerous soccer leagues throughout the world, some of which have gained prestige over the years for cultivating a high level of competition and attracting big names from European leagues. Major League Soccer (MLS) in the United States, for example, made headlines over recent years for their signing of football royalty with the likes of Wayne Rooney, Kaká, Zlatan Ibrahimovic, and many others. The sport has had time to grow and adapt in countries that were initially focused on other programs. Is the gap between European leagues and the rest of the world really so large then, if existent at all?  
+
+<br>
+
+In order to provide answers to this question, I decided to focus my analysis on ten leagues, five of the best from Europe and five of the best scattered across the rest of the world, as shown below:  
+
+
+European Leagues:  
+
+* **Premier League (England)**  
+
+* **La Liga (Spain)**  
+
+* **Serie A (Italy)**  
+
+* **German Bundesliga**  
+
+* **French Ligue**  
+
+
+Global Leagues:   
+
+* **Major League Soccer (US)**  
+
+* **Brazil Serie A**  
+
+* **Argentina Primera Division**  
+
+* **Chinese Super League**  
+
+* **Australian A-League**   
+
+
+
+Analyzing statistics regarding the teams within these organizations, I examined whether the numbers really support the idea that European soccer is leagues ahead of the rest of the world. 
+
+
+## What is a Soccer Power Index
+
+The first point of comparison for the teams from these 10 different leagues is their SPI, a statistic calculated by FiveThirtyEight. Described as their “best estimate of a team’s overall strength”, an SPI takes into account a team’s offensive rating (number of goals they are expected to score against an average team) and defensive rating (number of goals they are expected to concede). Overall, the statistic represents the percentage of points a team is predicted to take if a game is played over and over again. For the sake of this analysis, I calculated the mean SPI for each league by aggregating the values for all of its teams and dividing accordingly, in order to gain a better understanding of how they stack up against each other on average.  
+
+<br>
+
+```{r mean_spi for each league, out.width="200%", echo=FALSE}
+
+# finding the Mean SPI for each league and adding a colum to denote location
+mean_spi <- spi_global_rankings %>% 
+  group_by(league) %>% 
+  summarise(mean_spi = mean(spi)) %>% 
+  arrange(desc(mean_spi)) %>% 
+  mutate(location = case_when(league == "Argentina Primera Division" ~ "Global", 
+                              league == "Australian A-League" ~ "Global", 
+                              league == "Brazil Serie A" ~ "Global", 
+                              league == "Chinese Super League" ~ "Global", 
+                              league == "French Ligue" ~ "Europe", 
+                              league == "German Bundesliga" ~ "Europe", 
+                              league == "Italy Serie A" ~ "Europe", 
+                              league == "La Liga" ~ "Europe", 
+                              league == "Major League Soccer" ~ "Global", 
+                              league == "Premier League" ~ "Europe")) 
+
+# changing the league names to their corresponding countries to fit better on the graph 
+mean_spi[mean_spi == "Premier League"] <- "England"
+mean_spi[mean_spi == "German Bundesliga"] <- "Germany"
+mean_spi[mean_spi == "Australian A-League"] <- "Australia"
+mean_spi[mean_spi == "Brazil Serie A"] <- "Brazil"
+mean_spi[mean_spi == "Chinese Super League"] <- "China"
+mean_spi[mean_spi == "French Ligue"] <- "France"
+mean_spi[mean_spi == "La Liga"] <- "Spain"
+mean_spi[mean_spi == "Italy Serie A"] <- "Italy"
+mean_spi[mean_spi == "Argentina Primera Division"] <- "Argentina"
+mean_spi[mean_spi == "Major League Soccer"] <- "USA"
+
+# making sure the order stays the same for the plot
+mean_spi$league <- factor(mean_spi$league, levels = mean_spi$league)
+  
+# bar graph showing the mean SPI for each league
+  ggplot(mean_spi, aes(x = league, y = mean_spi, fill = league)) +
+  geom_col() + 
+    labs(x = "Country", y = "Mean SPI") + 
+    theme(legend.position = "none") +
+  facet_wrap(~location, nrow=5)
+
+```
+<br>
+
+As is evident from the graph above that displays the mean SPI of all of the leagues in descending order, there is quite a clear split with the top five spots solely occupied by European leagues. The best league elsewhere in the world has a lower mean SPI value than the worst league in Europe, of those that are represented by this data. It is interesting to note, however, that the Brazilian Serie A is in fact the global league with the best statistic in this case; I had expected Major League Soccer to be the clear winner, as the program with by far the most funding and exposure in that part of the world, although the leagues does come in at a relatively close second.  
+
+<br>
+
+
+In order to get a more direct comparison and to see whether a different picture is painted when the scale is changed, I selected the team with the highest SPI value from each league. The team’s offensive and defensive ratings that are used to calculate the statistic are also included in the table below, to provide more context. 
+
+
+```{r mean_spi for 10 best teams, echo=FALSE}
+
+spi_top10 <- spi_global_rankings %>% 
+   filter(name == "River Plate" | name == "Melbourne City" | 
+            name == "Manchester City" | name == "Flamengo" | 
+            name == "Guangzhou Evergrande" | name == "Paris Saint-Germain" |
+            name == "Bayern Munich" | name == "Internazionale" | 
+            name == "Los Angeles FC" | name == "Barcelona") %>% 
+  arrange(desc(spi))
+
+gt_top10 <- gt(spi_top10)
+
+gt_top10 %>% 
+  opt_table_lines() %>% 
+  cols_label(rank = "Rank", prev_rank = "Previous Rank", name = "Name", 
+             league = "League", off = "Offensive", def = "Defensive", spi = "SPI") %>% 
+  cols_move(columns = rank, after = league) %>% 
+  cols_width(name ~ px(150), league ~ px(150), everything() ~ px(100)) %>% 
+  cols_move(columns = prev_rank, after = rank) %>% 
+  cols_align(align = "center", columns = c(rank, prev_rank, off, def, spi)) %>% 
+  cols_align(align = "left", columns = c(name, league)) %>% 
+  data_color(
+    columns = spi,
+    colors = scales::col_numeric(
+      palette = c("red", "orange", "yellow", "green"),
+      domain = c(35, 94)
+    ))
+  
+```
+
+<br>
+The trend observed in the previous plot continues in the table above with another perfect split directly down the middle, made more evident by the color change as the SPI value decreases. Despite some minor shuffling within the two categories, the teams with the highest green SPI values are all European, with the Premier League claiming the top spot yet again. In addition to reaffirming the observed pattern so far, this table also highlights how both the offensive AND defensive scores for each team figures into their placement. The rank categories as well display the global rank teams held in 2021 and the previous year in terms of their SPI values, with the numbers distinctly decreasing rapidly the farther down the table you look. In conclusion, so far, it seems that the top spots in the world are currently held exclusively by leagues located in Europe.   
+
+<br>
+
+## A Deeper Look
+
+Despite the clear picture that has been painted so far, I would have been remiss to not conduct further analysis utilizing a broader spectrum of statistics. To do this, I kept my list of the top teams from each of the leagues in order to maintain a level of direct comparison; league-wide analysis would be difficult to conduct and harder to interpret. Analysis was done using select statistics from footystats.org, a comprehensive website that included numbers for all of the teams of interest, which I then compiled into an Excel sheet to facilitate transformation of the data. I purposely chose the following statistics for the 2020-21 that I felt would best display the most information regarding a team’s relative strength: percentage of games won, goals scored, goals allowed, the percentage of shots they converted into goals, the percentage of clean sheets, and the possession percentage. In this case, a clean sheet is any game where a team does not allow their opposition to score. These statistics for the top ranked team in each of the ten leagues are displayed below. 
+
+``` {r table general statistics for top 10, echo=FALSE}
+# read in the data including stats
+  best10_teams <- read_excel("../Misc Data/DSCI 140 Soccer Stats.xlsx")
+  
+  # add a location column to denote whether a team is European or not 
+  best10_teams <- best10_teams %>% 
+    mutate(Location = case_when(League == "Argentina Primera Division" ~ "Global", 
+                                League == "Australian A-League" ~ "Global", 
+                                League == "Brazil Serie A" ~ "Global", 
+                                League == "Chinese Super League" ~ "Global", 
+                                League == "French Ligue" ~ "Europe", 
+                                League == "German Bundesliga" ~ "Europe", 
+                                League == "Italy Serie A" ~ "Europe", 
+                                League == "La Liga" ~ "Europe", 
+                                League == "Major League Soccer" ~ "Global", 
+                                League == "Premier League" ~ "Europe")) %>% 
+    arrange(desc(`Win %`)) 
+    
+  # create a gt table
+  gt_best10 <- gt(best10_teams)
+  
+  gt_best10 %>% 
+    opt_table_lines() %>% 
+    cols_label(`GPG` = "Goals Scored (per game)", 
+               `GA (per game)` = "Goals Allowed (per game)") %>% 
+    cols_align(align = "center", columns = c(`Matches Played`, `Win %`, 
+                                             `GA (per game)`, `GPG`, 
+                                             `Shot Conversion %`, `Clean Sheet %`, 
+                                             `Possession %`)) %>% 
+    cols_move(columns = Location, after = `Team`) %>% 
+    cols_width(`League` ~ px(200), `Team` ~ px(150), everything() ~ px(100)) %>%
+    data_color(
+      columns = `Win %`,
+      colors = scales::col_numeric(
+        palette = c("red", "orange", "yellow", "green"),
+        domain = c(34, 80)
+      )) 
+
+```
+
+<br>
+
+With a look at a wider range of statistics providing a more in depth analysis of the relative ranks of these teams, it is evident that by-and-large the previous pattern has held up even at this level. It is important to note however, that the teams are ordered in the table by their win percentage, the statistic that I felt best represented their strength during the 2021 season. By that comparison, it is interesting that there is the first non-perfect split in terms of location. Barcelona, the best team located in Spain, is ranked beneath Guangzhou Evergrande, a team from the Chinese Super League. The rest of the table, however, ascribes to the prevailing pattern that teams in Europe are statistically superior to those elsewhere in the world.  
+
+<br>
+
+Below is a bubble plot focused on comparing the relative ranks of these teams based specifically on two other
+statistics that, in my opinion, provide a great insight into the success of a soccer team: average goals scored
+and average goals allowed per game. For this, the y-axis represents the number of goals scored and the size of
+the bubbles correspond to the goals allowed, with the color denoting whether the team is European (yellow)
+or global (orange). 
+
+
+``` {r bubble plot top ten goals scored and allowed, out.width="200%", include=FALSE, eval=FALSE}
+
+# denoting each team with their country instead for ease of analysis 
+best10_teams[best10_teams == "Manchester City"] <- "England"
+best10_teams[best10_teams == "Bayern Munich"] <- "Germany"
+best10_teams[best10_teams == "Melbourne City"] <- "Australia"
+best10_teams[best10_teams == "Flamengo"] <- "Brazil"
+best10_teams[best10_teams == "Guangzhou Evergrande"] <- "China"
+best10_teams[best10_teams == "Paris Saint-Germain"] <- "France"
+best10_teams[best10_teams == "Barcelona"] <- "Spain"
+best10_teams[best10_teams == "Internazionale"] <- "Italy"
+best10_teams[best10_teams == "River Plate"] <- "Argentina"
+best10_teams[best10_teams == "Los Angeles FC"] <- "USA"
+
+
+
+# ensuring the order stays set
+best10_teams$`Team` <- factor(best10_teams$`Team`, levels = best10_teams$`Team`)
+
+
+# creating the bubble plot 
+ggplot(best10_teams, aes(x = `Team`, y = `GPG`, size = `GA (per game)`, color = `Location`,
+                        alpha = 0.75)) +
+  geom_point() +
+  labs (x = "Country", y = "Goals Scored (per game)") +
+  scale_size(range = c(5, 24), name="Goals Allowed (per game)") +
+  ylim(1.4, 3.1) +
+  scale_color_manual(values = c("#E7B800", "#FC4E07")) +
+  theme(legend.position = "none")
+
+```
+
+<br>
+
+```{r  plot top ten teams: goals scored vs. goals allowed, out.width="200%", echo=FALSE}
+score_plot <- ggplot(best10_teams, aes(x = `GPG`, y = `GA (per game)`, color = `Location`,
+                         )) +
+  geom_point(size = 7) +
+  geom_text_repel(
+    label= best10_teams$Team,
+    point.size = 7
+  ) +
+  labs (title = "Football or Soccer? Doesn't Matter, Europe Does it Better",
+        subtitle = "Top 10 European vs. Non-European Soccer Teams in 2021", 
+        caption = "Source: footystats.org",
+        x = "\nGoals Scored (per game)", y = "Goals Allowed (per game)") +
+  ylim(0.5, 1.75) +
+  xlim(1.25, 3) +
+  scale_color_manual(values = c("#E7B800", "#FC4E07")) +
+  theme(legend.position = "none") +
+  theme_minimal() 
+
+score_plot + theme(plot.title = element_text(face="bold", hjust = 0.5), 
+      plot.subtitle = element_text(hjust = 0.5)) +
+  theme(axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0))) 
+
+
+```
+<br>
+
+This plot compares the ability of the top five European soccer teams and top five Non-European (“Global”) soccer teams during the 2021 season to score goals and to defend against goals. In this figure, goals scored are plotted on the x-axis and goals allowed on the y-axis in order to concentrate teams with similar trends in the same area. The farther to the right a team is located, the more goals they scored and the higher on the plot they are, the more goals they let their opposition score. The legend denotes that points in yellow are European teams, while points in red are Non-European. As you can see, the team with the highest average goals scored during this season was located in Germany (that would be courtesy of Bayern Munich), while the team with the most goals allowed is in the United States (tough luck for Los Angeles FC). In fact, three of the teams that are located farthest to the right are European (France and England joining Germany), whereas the two highest teams are not (US and Australia). 
+
+<br>
+
+While this plot does support the common notion that teams located in Europe are far superior at soccer than the rest of the world (the title says it all), the gap is not as wide as I was expecting. For the most part, ignoring the two highest points on the plot, the majority of teams are concentrated at roughly the same level in terms of average number of goals scored against them. And barring the absolute scoring machine that is Bayern Munich in Germany, eight out of the ten teams scored an average of 1.7 - 2.4 goals per game during the 2021-22 season. Taking a step back, it seems that most of the points are actually clustered near the center of the graph. Therefore, it seems that the rest of the world may actually be catching up in terms of soccer skill. It makes sense that Europe does have an advantage; after all, they are not in want of any funding, support from the public, or general hype. Soccer, or football as they would call it, has a grip over the continent as the most popular sport by far. It seems, though, that it is making its impact elsewhere as well if the recent rise in places such as the United States is anything to go by.
+
+<br>
+
+Every team has their ups and downs. Yet, certain ones gain reputations over time that sets them apart in the minds of fans and viewers. The leagues of Europe are the exemplar of what soccer should look like: heartfelt, passionate, and popular. The rest of the world, however, has been steadily developing respected leagues and gaining avid soccer fans to go along with them. My aim, then, was simple: to determine whether the leagues of Europe are truly, statistically superior to ones elsewhere. Conducting analysis using several statistics on ten leagues and ten teams from within them, the dominant conclusion that can be drawn is that this preconception has actual merit. In each category and comparison, the European leagues and teams by-and-large ranked above those located in other parts of the world. Considering the massive funding and support that is funneled into the programs, it makes sense that their players would perform at such a high level. But, considering the lack of any prominent global leagues decades ago, they have made considerable leaps and bounds in recent years. It is quite possible, then, that as the rest of the world catches up to European soccer, the playing field might truly even out. 
